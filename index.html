@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Школьный Краудсорсинг - Идеи для улучшения школы</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏫</text></svg>">
+</head>
+<body>
+    <!-- Шапка сайта -->
+    <header>
+        <div class="container">
+            <div class="logo-header">
+                <i class="fas fa-school"></i>
+                <h1>Школьный Краудсорсинг</h1>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="#ideas"><i class="fas fa-lightbulb"></i> Идеи</a></li>
+                    <li><a href="#submit"><i class="fas fa-paper-plane"></i> Предложить</a></li>
+                    <li><a href="#leaderboard"><i class="fas fa-trophy"></i> Рейтинг</a></li>
+                    <li><a href="#about"><i class="fas fa-info-circle"></i> О проекте</a></li>
+                </ul>
+            </nav>
+            <div class="user-section">
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="username">Ученик</span>
+                </div>
+                <button id="theme-toggle" class="btn-icon" title="Сменить тему">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Основное содержимое -->
+    <main class="container">
+        <!-- Приветственная секция -->
+        <section class="hero">
+            <div class="hero-content">
+                <h2>Ваши идеи меняют школу к лучшему!</h2>
+                <p>Предлагайте идеи по улучшению школы, голосуйте за лучшие и следите за их реализацией.</p>
+                <div class="hero-stats">
+                    <div class="stat">
+                        <i class="fas fa-lightbulb"></i>
+                        <span id="total-ideas">0</span>
+                        <p>идей предложено</p>
+                    </div>
+                    <div class="stat">
+                        <i class="fas fa-vote-yea"></i>
+                        <span id="total-votes">0</span>
+                        <p>голосов отдано</p>
+                    </div>
+                    <div class="stat">
+                        <i class="fas fa-check-circle"></i>
+                        <span id="implemented-ideas">0</span>
+                        <p>идей реализовано</p>
+                    </div>
+                </div>
+                <a href="#submit" class="btn-primary">Предложить свою идею</a>
+            </div>
+            <div class="hero-image">
+                <i class="fas fa-users"></i>
+            </div>
+        </section>
+
+        <!-- Секция с идеями -->
+        <section id="ideas" class="section">
+            <div class="section-header">
+                <h2><i class="fas fa-lightbulb"></i> Идеи для улучшения школы</h2>
+                <div class="filter-controls">
+                    <button class="filter-btn active" data-filter="all">Все идеи</button>
+                    <button class="filter-btn" data-filter="new">Новые</button>
+                    <button class="filter-btn" data-filter="popular">Популярные</button>
+                    <button class="filter-btn" data-filter="implemented">Реализованные</button>
+                </div>
+            </div>
+            
+            <div class="ideas-container" id="ideas-container">
+                <!-- Идеи будут загружаться здесь -->
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Загрузка идей...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Секция предложения идеи -->
+        <section id="submit" class="section">
+            <div class="section-header">
+                <h2><i class="fas fa-paper-plane"></i> Предложить новую идею</h2>
+            </div>
+            <div class="submit-form">
+                <div class="form-group">
+                    <label for="idea-title"><i class="fas fa-heading"></i> Название идеи</label>
+                    <input type="text" id="idea-title" placeholder="Например: Организация школьного сада" maxlength="100">
+                    <div class="char-counter"><span id="title-chars">0</span>/100</div>
+                </div>
+                <div class="form-group">
+                    <label for="idea-category"><i class="fas fa-tag"></i> Категория</label>
+                    <select id="idea-category">
+                        <option value="infrastructure">Инфраструктура</option>
+                        <option value="education">Учебный процесс</option>
+                        <option value="events">Мероприятия</option>
+                        <option value="sport">Спорт и здоровье</option>
+                        <option value="other">Другое</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="idea-description"><i class="fas fa-align-left"></i> Подробное описание</label>
+                    <textarea id="idea-description" rows="5" placeholder="Опишите вашу идею подробно: что нужно сделать, как это поможет школе, кто может помочь в реализации..."></textarea>
+                    <div class="char-counter"><span id="desc-chars">0</span>/500</div>
+                </div>
+                <div class="form-group">
+                    <label for="idea-author"><i class="fas fa-user"></i> Ваше имя (необязательно)</label>
+                    <input type="text" id="idea-author" placeholder="Можно оставить анонимно">
+                </div>
+                <div class="form-group">
+                    <label for="idea-class"><i class="fas fa-graduation-cap"></i> Ваш класс (необязательно)</label>
+                    <input type="text" id="idea-class" placeholder="Например: 10А">
+                </div>
+                <button id="submit-idea" class="btn-primary">
+                    <i class="fas fa-paper-plane"></i> Отправить идею
+                </button>
+            </div>
+        </section>
+
+        <!-- Секция рейтинга -->
+        <section id="leaderboard" class="section">
+            <div class="section-header">
+                <h2><i class="fas fa-trophy"></i> Рейтинг самых активных участников</h2>
+            </div>
+            <div class="leaderboard-container">
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>Место</th>
+                            <th>Участник</th>
+                            <th>Класс</th>
+                            <th>Идеи</th>
+                            <th>Голоса</th>
+                            <th>Очки</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-body">
+                        <!-- Данные рейтинга будут загружены здесь -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Секция "О проекте" -->
+        <section id="about" class="section">
+            <div class="section-header">
+                <h2><i class="fas fa-info-circle"></i> О проекте</h2>
+            </div>
+            <div class="about-content">
+                <div class="about-card">
+                    <i class="fas fa-bullhorn"></i>
+                    <h3>Что такое краудсорсинг?</h3>
+                    <p>Это коллективная работа над идеями по улучшению школы. Каждый ученик может предложить свою идею и проголосовать за другие.</p>
+                </div>
+                <div class="about-card">
+                    <i class="fas fa-vote-yea"></i>
+                    <h3>Как это работает?</h3>
+                    <p>Предложите идею → получите голоса → идеи с наибольшей поддержкой будут рассмотрены администрацией школы.</p>
+                </div>
+                <div class="about-card">
+                    <i class="fas fa-medal"></i>
+                    <h3>Зачем участвовать?</h3>
+                    <p>Самые активные участники получат грамоты и возможность участвовать в школьном совете по развитию.</p>
+                </div>
+            </div>
+            <div class="about-info">
+                <h3>Правила участия:</h3>
+                <ul>
+                    <li>Идеи должны быть реалистичными и полезными для школы</li>
+                    <li>Уважайте идеи других участников</li>
+                    <li>Каждый ученик может проголосовать за 3 разные идеи</li>
+                    <li>Администрация школы будет рассматривать идеи с 10+ голосами</li>
+                </ul>
+                <div class="contact-info">
+                    <p><i class="fas fa-envelope"></i> Вопросы и предложения: <a href="mailto:school-ideas@example.com">school-ideas@example.com</a></p>
+                    <p><i class="fas fa-user-tie"></i> Координатор проекта: Иванова Мария Петровна (каб. 203)</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Футер -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <i class="fas fa-school"></i>
+                    <h3>Школьный Краудсорсинг</h3>
+                    <p>Платформа для сбора идей по улучшению школы</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Быстрые ссылки</h4>
+                    <ul>
+                        <li><a href="#ideas"><i class="fas fa-arrow-right"></i> Все идеи</a></li>
+                        <li><a href="#submit"><i class="fas fa-arrow-right"></i> Предложить идею</a></li>
+                        <li><a href="#leaderboard"><i class="fas fa-arrow-right"></i> Рейтинг участников</a></li>
+                    </ul>
+                </div>
+                <div class="footer-info">
+                    <h4>Контакты</h4>
+                    <p><i class="fas fa-map-marker-alt"></i> Средняя школа №1, г. Москва</p>
+                    <p><i class="fas fa-phone"></i> +7 (495) 123-45-67</p>
+                    <p><i class="fas fa-envelope"></i> school-ideas@example.com</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2023 Школьный Краудсорсинг. Все права защищены.</p>
+                <p>Сделано с <i class="fas fa-heart"></i> для развития школьного сообщества</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Модальное окно для деталей идеи -->
+    <div id="idea-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close">&times;</button>
+            <div class="modal-body" id="modal-body">
+                <!-- Контент будет загружен динамически -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Уведомления -->
+    <div id="notification" class="notification">
+        <div class="notification-content">
+            <i class="fas fa-check-circle"></i>
+            <span id="notification-text">Идея успешно добавлена!</span>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

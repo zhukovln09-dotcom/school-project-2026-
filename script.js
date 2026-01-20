@@ -1,6 +1,6 @@
 // Инициализация Supabase
-const SUPABASE_URL = 'https://ваш-project-id.supabase.co';
-const SUPABASE_KEY = 'ваш-anon-key';
+const SUPABASE_URL = 'https://dnohkazomuimexysmale.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_hCsHAo_Kio3X7omf3z1ydA_yWpgeJsT';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 

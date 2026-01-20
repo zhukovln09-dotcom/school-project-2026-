@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Школьный Краудсорсинг - Идеи для нашей школы</title>
@@ -263,46 +264,55 @@
     </main>
 
     <!-- Модальное окно входа -->
-    <div id="login-modal" class="modal">
+    <div id="auth-modal" class="modal">
         <div class="modal-content">
             <span class="close-modal">&times;</span>
-            <h3><i class="fas fa-sign-in-alt"></i> Вход в систему</h3>
-            <p>Войдите, чтобы предлагать идеи и голосовать</p>
+            <div id="auth-forms">
+                <!-- Форма входа -->
+                <div id="login-form" class="auth-form">
+                    <h3><i class="fas fa-sign-in-alt"></i> Вход</h3>
+                    <div class="form-group">
+                        <label for="login-email">Email</label>
+                        <input type="email" id="login-email" placeholder="ваш@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Пароль</label>
+                        <input type="password" id="login-password" placeholder="Ваш пароль">
+                    </div>
+                    <button id="login-submit" class="btn-primary">Войти</button>
+                    <p class="auth-switch">Нет аккаунта? <a href="#" id="show-register">Зарегистрироваться</a></p>
+                </div>
             
-            <div class="login-options">
-                <div class="login-option">
-                    <div class="login-icon student">
-                        <i class="fas fa-user-graduate"></i>
+            <!-- Форма регистрации -->
+                <div id="register-form" class="auth-form" style="display: none;">
+                    <h3><i class="fas fa-user-plus"></i> Регистрация</h3>
+                    <div class="form-group">
+                        <label for="register-name">Имя</label>
+                        <input type="text" id="register-name" placeholder="Ваше имя">
                     </div>
-                    <h4>Ученик</h4>
-                    <p>Войти как ученик</p>
-                    <button class="btn-primary login-as" data-role="student">Войти</button>
-                </div>
-                
-                <div class="login-option">
-                    <div class="login-icon teacher">
-                        <i class="fas fa-chalkboard-teacher"></i>
+                    <div class="form-group">
+                        <label for="register-email">Email</label>
+                        <input type="email" id="register-email" placeholder="ваш@email.com">
                     </div>
-                    <h4>Учитель</h4>
-                    <p>Войти как учитель</p>
-                    <button class="btn-primary login-as" data-role="teacher">Войти</button>
-                </div>
-                
-                <div class="login-option">
-                    <div class="login-icon admin">
-                        <i class="fas fa-user-shield"></i>
+                    <div class="form-group">
+                        <label for="register-password">Пароль</label>
+                        <input type="password" id="register-password" placeholder="Придумайте пароль">
                     </div>
-                    <h4>Администратор</h4>
-                    <p>Войти как администратор</p>
-                    <button class="btn-primary login-as" data-role="admin">Войти</button>
+                    <div class="form-group">
+                        <label for="register-role">Роль</label>
+                        <select id="register-role">
+                            <option value="student">Ученик</option>
+                            <option value="teacher">Учитель</option>
+                            <option value="parent">Родитель</option>
+                        </select>
+                    </div>
+                    <button id="register-submit" class="btn-primary">Зарегистрироваться</button>
+                    <p class="auth-switch">Уже есть аккаунт? <a href="#" id="show-login">Войти</a></p>
                 </div>
-            </div>
-            
-            <div class="demo-note">
-                <p><i class="fas fa-info-circle"></i> Это демо-версия. В реальном проекте была бы реализована настоящая система аутентификации.</p>
             </div>
         </div>
     </div>
+    
 
     <!-- Модальное окно деталей идеи -->
     <div id="idea-detail-modal" class="modal">

@@ -1,7 +1,7 @@
 /* Общие стили */
 :root {
-    --primary-color: #4361ee;
-    --primary-light: #4895ef;
+    --primary-color: #a00d63;
+    --primary-light: #f91570;
     --secondary-color: #3a0ca3;
     --success-color: #4cc9f0;
     --warning-color: #f72585;
@@ -15,8 +15,8 @@
 }
 
 .dark-theme {
-    --primary-color: #5a6ff0;
-    --primary-light: #6a7ff0;
+    --primary-color: #940056;
+    --primary-light: #d5105f;
     --secondary-color: #4a1cb3;
     --light-color: #212529;
     --dark-color: #f8f9fa;

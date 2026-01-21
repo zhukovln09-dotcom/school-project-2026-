@@ -1,146 +1,174 @@
-// Школьный краудсорсинг - основное приложение
+// app.js - Основное приложение с Firebase
+import { firestoreService, getAuth } from './firebase-app.js';
+
 class CrowdsourcingApp {
     constructor() {
         this.ideas = [];
         this.currentFilter = 'all';
-        this.votedIdeas = JSON.parse(localStorage.getItem('votedIdeas')) || [];
+        this.userId = null;
+        this.unsubscribeIdeas = null;
         this.init();
     }
 
     // Инициализация приложения
-    init() {
-        this.loadIdeas();
-        this.setupEventListeners();
-        this.updateStats();
-        this.setupCharacterCounters();
-        this.loadLeaderboard();
-        
-        // Проверка темы
-        if (localStorage.getItem('theme') === 'dark') {
-            document.body.classList.add('dark-theme');
-            document.getElementById('theme-toggle').innerHTML = '<i class="fas fa-sun"></i>';
+    async init() {
+        try {
+            // Ждем инициализации Firebase
+            await this.waitForFirebaseAuth();
+            
+            // Получаем ID пользователя
+            const auth = getAuth();
+            this.userId = auth.currentUser ? auth.currentUser.uid : 'anonymous';
+            
+            // Загружаем идеи
+            await this.loadIdeas();
+            
+            // Настраиваем подписку на обновления в реальном времени
+            this.setupRealtimeUpdates();
+            
+            // Настраиваем обработчики событий
+            this.setupEventListeners();
+            
+            // Обновляем статистику
+            await this.updateStats();
+            
+            // Настраиваем счетчики символов
+            this.setupCharacterCounters();
+            
+            // Загружаем рейтинг
+            await this.loadLeaderboard();
+            
+            // Настраиваем тему
+            this.setupTheme();
+            
+            console.log('Приложение успешно инициализировано');
+        } catch (error) {
+            console.error('Ошибка инициализации приложения:', error);
+            this.showNotification('Ошибка загрузки данных. Проверьте подключение к интернету.', 'warning');
+            this.loadFallbackData();
         }
     }
 
-    // Загрузка идей (в реальном приложении здесь был бы запрос к серверу)
-    loadIdeas() {
-        // Имитация задержки загрузки
-        setTimeout(() => {
-            // Проверяем, есть ли идеи в localStorage
-            const savedIdeas = localStorage.getItem('schoolIdeas');
-            
-            if (savedIdeas) {
-                this.ideas = JSON.parse(savedIdeas);
-            } else {
-                // Начальные данные для демонстрации
-                this.ideas = [
-                    {
-                        id: 1,
-                        title: "Установка кулеров с водой на каждом этаже",
-                        description: "Предлагаю установить кулеры с питьевой водой на каждом этаже школы, чтобы ученики могли пить воду в течение дня. Это поможет поддерживать водный баланс и улучшит самочувствие.",
-                        category: "infrastructure",
-                        author: "Анна С.",
-                        class: "10А",
-                        votes: 24,
-                        date: "2023-09-15",
-                        status: "popular",
-                        implemented: false
-                    },
-                    {
-                        id: 2,
-                        title: "Организация школьного книгообмена",
-                        description: "Создать полку в библиотеке, где ученики могут оставлять прочитанные книги и брать другие бесплатно. Это разовьет культуру чтения и сэкономит средства семей.",
-                        category: "education",
-                        author: "Максим К.",
-                        class: "9Б",
-                        votes: 18,
-                        date: "2023-10-02",
-                        status: "new",
-                        implemented: false
-                    },
-                    {
-                        id: 3,
-                        title: "День самоуправления 2 раза в год",
-                        description: "Проводить День самоуправления не один, а два раза в год (осенью и весной). Это даст возможность большему количеству учеников попробовать себя в роли учителей и администрации.",
-                        category: "events",
-                        author: "Диана М.",
-                        class: "11А",
-                        votes: 32,
-                        date: "2023-08-28",
-                        status: "implemented",
-                        implemented: true
-                    },
-                    {
-                        id: 4,
-                        title: "Создание зоны отдыха в школьном дворе",
-                        description: "Установить скамейки, столики и навесы в школьном дворе для отдыха учеников между уроками и после занятий.",
-                        category: "infrastructure",
-                        author: "Илья П.",
-                        class: "8В",
-                        votes: 15,
-                        date: "2023-10-10",
-                        status: "new",
-                        implemented: false
-                    },
-                    {
-                        id: 5,
-                        title: "Фестиваль культур народов мира",
-                        description: "Организовать ежегодный фестиваль, где каждый класс представляет культуру одной страны: национальные блюда, танцы, традиции.",
-                        category: "events",
-                        author: "София Л.",
-                        class: "10Б",
-                        votes: 21,
-                        date: "2023-09-22",
-                        status: "popular",
-                        implemented: false
-                    },
-                    {
-                        id: 6,
-                        title: "Введение курса финансовой грамотности",
-                        description: "Добавить в учебный план курс по финансовой грамотности для старших классов, чтобы научить планировать бюджет, разбираться в налогах и инвестициях.",
-                        category: "education",
-                        author: "Аноним",
-                        class: "",
-                        votes: 28,
-                        date: "2023-09-05",
-                        status: "popular",
-                        implemented: false
-                    }
-                ];
-                this.saveIdeas();
-            }
-            
+    // Ожидание инициализации Firebase Auth
+    waitForFirebaseAuth() {
+        return new Promise((resolve) => {
+            const auth = getAuth();
+            const unsubscribe = auth.onAuthStateChanged((user) => {
+                unsubscribe();
+                resolve();
+            });
+        });
+    }
+
+    // Загрузка идей из Firestore
+    async loadIdeas() {
+        try {
+            this.ideas = await firestoreService.getAllIdeas({
+                sortBy: this.currentFilter === 'popular' ? 'votes' : 'createdAt'
+            });
             this.renderIdeas();
-        }, 800);
+        } catch (error) {
+            console.error('Ошибка загрузки идей:', error);
+            throw error;
+        }
     }
 
-    // Сохранение идей в localStorage
-    saveIdeas() {
-        localStorage.setItem('schoolIdeas', JSON.stringify(this.ideas));
+    // Настройка обновлений в реальном времени
+    setupRealtimeUpdates() {
+        const filters = {};
+        
+        if (this.currentFilter === 'new') {
+            filters.status = 'new';
+        } else if (this.currentFilter === 'popular') {
+            filters.status = 'popular';
+        } else if (this.currentFilter === 'implemented') {
+            filters.implemented = true;
+        }
+        
+        // Отписываемся от предыдущей подписки, если есть
+        if (this.unsubscribeIdeas) {
+            this.unsubscribeIdeas();
+        }
+        
+        // Подписываемся на обновления
+        this.unsubscribeIdeas = firestoreService.subscribeToIdeas(
+            (ideas) => {
+                this.ideas = ideas;
+                this.renderIdeas();
+                this.updateStats();
+                this.loadLeaderboard();
+            },
+            filters
+        );
     }
 
-    // Сохранение голосов в localStorage
-    saveVotes() {
-        localStorage.setItem('votedIdeas', JSON.stringify(this.votedIdeas));
+    // Загрузка данных из localStorage при ошибке
+    loadFallbackData() {
+        const savedIdeas = localStorage.getItem('schoolIdeas');
+        
+        if (savedIdeas) {
+            this.ideas = JSON.parse(savedIdeas);
+            this.renderIdeas();
+            this.updateStatsFromLocalData();
+            this.showNotification('Используются локальные данные', 'warning');
+        } else {
+            this.ideas = this.getDemoIdeas();
+            this.renderIdeas();
+            this.updateStatsFromLocalData();
+        }
+    }
+
+    // Демо-данные
+    getDemoIdeas() {
+        return [
+            {
+                id: 'demo1',
+                title: "Установка кулеров с водой на каждом этаже",
+                description: "Предлагаю установить кулеры с питьевой водой на каждом этаже школы...",
+                category: "infrastructure",
+                authorName: "Анна С.",
+                authorClass: "10А",
+                votes: 24,
+                createdAt: { seconds: 1694710800, nanoseconds: 0 },
+                status: "popular",
+                implemented: false
+            },
+            {
+                id: 'demo2',
+                title: "Организация школьного книгообмена",
+                description: "Создать полку в библиотеке, где ученики могут оставлять прочитанные книги...",
+                category: "education",
+                authorName: "Максим К.",
+                authorClass: "9Б",
+                votes: 18,
+                createdAt: { seconds: 1696251600, nanoseconds: 0 },
+                status: "new",
+                implemented: false
+            }
+        ];
     }
 
     // Рендеринг идей на странице
     renderIdeas() {
         const container = document.getElementById('ideas-container');
         
-        // Фильтрация идей
+        if (!container) return;
+        
+        // Фильтрация идей (если не используется реальное время)
         let filteredIdeas = [...this.ideas];
         
-        if (this.currentFilter === 'new') {
-            filteredIdeas = filteredIdeas.filter(idea => idea.status === 'new');
-        } else if (this.currentFilter === 'popular') {
-            filteredIdeas = filteredIdeas.filter(idea => idea.status === 'popular');
-        } else if (this.currentFilter === 'implemented') {
-            filteredIdeas = filteredIdeas.filter(idea => idea.implemented);
+        if (!this.unsubscribeIdeas) {
+            if (this.currentFilter === 'new') {
+                filteredIdeas = filteredIdeas.filter(idea => idea.status === 'new');
+            } else if (this.currentFilter === 'popular') {
+                filteredIdeas = filteredIdeas.filter(idea => idea.status === 'popular');
+            } else if (this.currentFilter === 'implemented') {
+                filteredIdeas = filteredIdeas.filter(idea => idea.implemented);
+            }
         }
         
         // Сортировка по количеству голосов (по убыванию)
-        filteredIdeas.sort((a, b) => b.votes - a.votes);
+        filteredIdeas.sort((a, b) => (b.votes || 0) - (a.votes || 0));
         
         if (filteredIdeas.length === 0) {
             container.innerHTML = `
@@ -157,10 +185,10 @@ class CrowdsourcingApp {
         
         // Добавляем обработчики событий для кнопок голосования
         document.querySelectorAll('.vote-btn').forEach(button => {
-            button.addEventListener('click', (e) => {
+            button.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                const ideaId = parseInt(button.dataset.id);
-                this.voteForIdea(ideaId);
+                const ideaId = button.dataset.id;
+                await this.voteForIdea(ideaId);
             });
         });
         
@@ -168,7 +196,7 @@ class CrowdsourcingApp {
         document.querySelectorAll('.idea-card').forEach(card => {
             card.addEventListener('click', (e) => {
                 if (!e.target.closest('.vote-btn')) {
-                    const ideaId = parseInt(card.dataset.id);
+                    const ideaId = card.dataset.id;
                     this.openIdeaModal(ideaId);
                 }
             });
@@ -185,9 +213,16 @@ class CrowdsourcingApp {
             other: 'Другое'
         };
         
-        const isVoted = this.votedIdeas.includes(idea.id);
-        const voteBtnClass = isVoted ? 'vote-btn voted' : 'vote-btn';
-        const voteBtnText = isVoted ? 'Голос отдан' : 'Голосовать';
+        // Проверяем, голосовал ли пользователь (асинхронно обновим позже)
+        const voteBtnClass = 'vote-btn';
+        const voteBtnText = 'Голосовать';
+        
+        // Форматируем дату
+        let dateString = 'Недавно';
+        if (idea.createdAt && idea.createdAt.seconds) {
+            const date = new Date(idea.createdAt.seconds * 1000);
+            dateString = date.toLocaleDateString('ru-RU');
+        }
         
         let statusBadge = '';
         if (idea.implemented) {
@@ -211,13 +246,14 @@ class CrowdsourcingApp {
                 <div class="idea-footer">
                     <div class="idea-author">
                         <i class="fas fa-user"></i>
-                        <span>${idea.author || 'Аноним'} ${idea.class ? `, ${idea.class}` : ''}</span>
+                        <span>${idea.authorName || 'Аноним'} ${idea.authorClass ? `, ${idea.authorClass}` : ''}</span>
+                        <span class="idea-date">${dateString}</span>
                     </div>
                     <div class="idea-votes">
                         <button class="${voteBtnClass}" data-id="${idea.id}">
                             <i class="fas fa-thumbs-up"></i> ${voteBtnText}
                         </button>
-                        <span class="vote-count">${idea.votes}</span>
+                        <span class="vote-count">${idea.votes || 0}</span>
                     </div>
                 </div>
             </div>
@@ -225,51 +261,73 @@ class CrowdsourcingApp {
     }
 
     // Голосование за идею
-    voteForIdea(ideaId) {
-        // Проверяем, голосовал ли уже пользователь
-        if (this.votedIdeas.includes(ideaId)) {
-            this.showNotification('Вы уже голосовали за эту идею!', 'warning');
-            return;
-        }
-        
-        // Проверяем лимит голосов (максимум 3 идеи)
-        if (this.votedIdeas.length >= 3) {
-            this.showNotification('Вы можете проголосовать только за 3 идеи!', 'warning');
-            return;
-        }
-        
-        // Находим идею и увеличиваем счетчик голосов
-        const ideaIndex = this.ideas.findIndex(idea => idea.id === ideaId);
-        if (ideaIndex !== -1) {
-            this.ideas[ideaIndex].votes++;
+    async voteForIdea(ideaId) {
+        try {
+            // Проверяем, голосовал ли пользователь
+            const hasVoted = await firestoreService.hasUserVoted(ideaId, this.userId);
             
-            // Обновляем статус идеи на "популярная", если она набрала 15+ голосов
-            if (this.ideas[ideaIndex].votes >= 15 && !this.ideas[ideaIndex].implemented) {
-                this.ideas[ideaIndex].status = 'popular';
+            if (hasVoted) {
+                this.showNotification('Вы уже голосовали за эту идею!', 'warning');
+                return;
             }
             
-            // Добавляем идею в список проголосованных
-            this.votedIdeas.push(ideaId);
+            // Обновляем UI перед отправкой
+            const button = document.querySelector(`.vote-btn[data-id="${ideaId}"]`);
+            const countElement = button?.nextElementSibling;
             
-            // Сохраняем изменения
-            this.saveIdeas();
-            this.saveVotes();
+            if (button && countElement) {
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Голосование...';
+            }
             
-            // Обновляем интерфейс
-            this.renderIdeas();
-            this.updateStats();
-            this.loadLeaderboard();
+            // Отправляем голос
+            await firestoreService.voteForIdea(ideaId, this.userId);
             
-            // Показываем уведомление
+            // Успешное голосование
             this.showNotification('Ваш голос учтен!', 'success');
+            
+            // Обновляем кнопку
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-thumbs-up"></i> Голос отдан';
+                button.classList.add('voted');
+            }
+            
+        } catch (error) {
+            console.error('Ошибка голосования:', error);
+            
+            // Восстанавливаем UI
+            const button = document.querySelector(`.vote-btn[data-id="${ideaId}"]`);
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-thumbs-up"></i> Голосовать';
+            }
+            
+            this.showNotification(error.message || 'Ошибка при голосовании', 'warning');
         }
     }
 
     // Открытие модального окна с деталями идеи
-    openIdeaModal(ideaId) {
-        const idea = this.ideas.find(idea => idea.id === ideaId);
-        if (!idea) return;
-        
+    async openIdeaModal(ideaId) {
+        try {
+            const idea = await firestoreService.getIdeaById(ideaId);
+            if (!idea) {
+                this.showNotification('Идея не найдена', 'warning');
+                return;
+            }
+            
+            // Проверяем, голосовал ли пользователь
+            const hasVoted = await firestoreService.hasUserVoted(ideaId, this.userId);
+            
+            this.renderIdeaModal(idea, hasVoted);
+        } catch (error) {
+            console.error('Ошибка открытия модального окна:', error);
+            this.showNotification('Не удалось загрузить данные идеи', 'warning');
+        }
+    }
+
+    // Рендеринг модального окна
+    renderIdeaModal(idea, hasVoted) {
         const categoryNames = {
             infrastructure: 'Инфраструктура',
             education: 'Учебный процесс',
@@ -277,6 +335,13 @@ class CrowdsourcingApp {
             sport: 'Спорт и здоровье',
             other: 'Другое'
         };
+        
+        // Форматируем дату
+        let dateString = 'Недавно';
+        if (idea.createdAt && idea.createdAt.seconds) {
+            const date = new Date(idea.createdAt.seconds * 1000);
+            dateString = date.toLocaleDateString('ru-RU');
+        }
         
         const statusText = idea.implemented ? 
             '<span class="status-implemented"><i class="fas fa-check-circle"></i> Реализовано</span>' : 
@@ -290,9 +355,9 @@ class CrowdsourcingApp {
                 <h2>${idea.title}</h2>
                 <div class="modal-meta">
                     <span><i class="fas fa-tag"></i> ${categoryNames[idea.category] || idea.category}</span>
-                    <span><i class="fas fa-user"></i> ${idea.author || 'Аноним'} ${idea.class ? `, ${idea.class}` : ''}</span>
-                    <span><i class="fas fa-calendar"></i> ${idea.date}</span>
-                    <span><i class="fas fa-thumbs-up"></i> ${idea.votes} голосов</span>
+                    <span><i class="fas fa-user"></i> ${idea.authorName || 'Аноним'} ${idea.authorClass ? `, ${idea.authorClass}` : ''}</span>
+                    <span><i class="fas fa-calendar"></i> ${dateString}</span>
+                    <span><i class="fas fa-thumbs-up"></i> ${idea.votes || 0} голосов</span>
                 </div>
                 <div class="modal-status">${statusText}</div>
                 <div class="modal-description">
@@ -300,9 +365,9 @@ class CrowdsourcingApp {
                     <p>${idea.description}</p>
                 </div>
                 <div class="modal-actions">
-                    <button class="btn-primary vote-btn-modal" data-id="${idea.id}">
+                    <button class="btn-primary vote-btn-modal" data-id="${idea.id}" ${hasVoted ? 'disabled' : ''}>
                         <i class="fas fa-thumbs-up"></i> 
-                        ${this.votedIdeas.includes(idea.id) ? 'Голос отдан' : 'Поддержать идею'}
+                        ${hasVoted ? 'Голос отдан' : 'Поддержать идею'}
                     </button>
                     <button class="btn-secondary modal-close-btn">Закрыть</button>
                 </div>
@@ -314,10 +379,13 @@ class CrowdsourcingApp {
         modal.classList.add('active');
         
         // Добавляем обработчики событий
-        document.querySelector('.vote-btn-modal').addEventListener('click', () => {
-            this.voteForIdea(ideaId);
-            modal.classList.remove('active');
-        });
+        const voteBtn = document.querySelector('.vote-btn-modal');
+        if (voteBtn && !hasVoted) {
+            voteBtn.addEventListener('click', async () => {
+                await this.voteForIdea(idea.id);
+                modal.classList.remove('active');
+            });
+        }
         
         document.querySelector('.modal-close-btn').addEventListener('click', () => {
             modal.classList.remove('active');
@@ -337,65 +405,75 @@ class CrowdsourcingApp {
     }
 
     // Добавление новой идеи
-    addNewIdea(ideaData) {
-        // Генерируем ID для новой идеи
-        const newId = this.ideas.length > 0 ? Math.max(...this.ideas.map(idea => idea.id)) + 1 : 1;
-        
-        // Определяем статус новой идеи
-        let status = 'new';
-        if (ideaData.votes >= 15) {
-            status = 'popular';
+    async addNewIdea(ideaData) {
+        try {
+            // Валидация
+            if (!ideaData.title || ideaData.title.length < 5) {
+                throw new Error('Название должно содержать минимум 5 символов');
+            }
+            
+            if (!ideaData.description || ideaData.description.length < 20) {
+                throw new Error('Описание должно содержать минимум 20 символов');
+            }
+            
+            if (!ideaData.category) {
+                throw new Error('Выберите категорию');
+            }
+            
+            // Подготовка данных для Firestore
+            const firestoreIdeaData = {
+                title: ideaData.title,
+                description: ideaData.description,
+                category: ideaData.category,
+                authorName: ideaData.author || 'Аноним',
+                authorClass: ideaData.class || '',
+                status: 'new',
+                implemented: false,
+                votes: 0
+            };
+            
+            // Отправляем в Firestore
+            const newIdea = await firestoreService.createIdea(firestoreIdeaData);
+            
+            // Обновляем локальные данные
+            this.ideas.unshift(newIdea);
+            
+            // Показываем уведомление
+            this.showNotification('Идея успешно добавлена!', 'success');
+            
+            // Очищаем форму
+            this.clearForm();
+            
+            // Прокручиваем к секции с идеями
+            document.getElementById('ideas').scrollIntoView({ behavior: 'smooth' });
+            
+            return newIdea;
+        } catch (error) {
+            console.error('Ошибка добавления идеи:', error);
+            this.showNotification(error.message || 'Ошибка при добавлении идеи', 'warning');
+            throw error;
         }
-        
-        // Создаем новую идею
-        const newIdea = {
-            id: newId,
-            title: ideaData.title,
-            description: ideaData.description,
-            category: ideaData.category,
-            author: ideaData.author || 'Аноним',
-            class: ideaData.class || '',
-            votes: 0,
-            date: new Date().toISOString().split('T')[0],
-            status: status,
-            implemented: false
-        };
-        
-        // Добавляем идею в массив
-        this.ideas.push(newIdea);
-        
-        // Сохраняем изменения
-        this.saveIdeas();
-        
-        // Обновляем интерфейс
-        this.renderIdeas();
-        this.updateStats();
-        this.loadLeaderboard();
-        
-        // Показываем уведомление
-        this.showNotification('Идея успешно добавлена!', 'success');
-        
-        // Очищаем форму
-        this.clearForm();
-    }
-
-    // Очистка формы
-    clearForm() {
-        document.getElementById('idea-title').value = '';
-        document.getElementById('idea-description').value = '';
-        document.getElementById('idea-author').value = '';
-        document.getElementById('idea-class').value = '';
-        document.getElementById('idea-category').selectedIndex = 0;
-        
-        // Сбрасываем счетчики символов
-        document.getElementById('title-chars').textContent = '0';
-        document.getElementById('desc-chars').textContent = '0';
     }
 
     // Обновление статистики
-    updateStats() {
+    async updateStats() {
+        try {
+            const stats = await firestoreService.getStats();
+            
+            document.getElementById('total-ideas').textContent = stats.totalIdeas || 0;
+            document.getElementById('total-votes').textContent = stats.totalVotes || 0;
+            document.getElementById('implemented-ideas').textContent = stats.implementedIdeas || 0;
+        } catch (error) {
+            console.error('Ошибка обновления статистики:', error);
+            // Используем локальные данные
+            this.updateStatsFromLocalData();
+        }
+    }
+
+    // Обновление статистики из локальных данных
+    updateStatsFromLocalData() {
         const totalIdeas = this.ideas.length;
-        const totalVotes = this.ideas.reduce((sum, idea) => sum + idea.votes, 0);
+        const totalVotes = this.ideas.reduce((sum, idea) => sum + (idea.votes || 0), 0);
         const implementedIdeas = this.ideas.filter(idea => idea.implemented).length;
         
         document.getElementById('total-ideas').textContent = totalIdeas;
@@ -403,39 +481,24 @@ class CrowdsourcingApp {
         document.getElementById('implemented-ideas').textContent = implementedIdeas;
     }
 
-    // Загрузка рейтинга участников
-    loadLeaderboard() {
-        // Создаем объект для подсчета активности участников
-        const userStats = {};
-        
-        this.ideas.forEach(idea => {
-            if (idea.author && idea.author !== 'Аноним') {
-                const userKey = `${idea.author}_${idea.class}`;
-                
-                if (!userStats[userKey]) {
-                    userStats[userKey] = {
-                        name: idea.author,
-                        class: idea.class,
-                        ideas: 0,
-                        votes: 0,
-                        points: 0
-                    };
-                }
-                
-                userStats[userKey].ideas += 1;
-                userStats[userKey].votes += idea.votes;
-                userStats[userKey].points += idea.votes + 5; // 5 очков за каждую идею + голоса
-            }
-        });
-        
-        // Преобразуем в массив и сортируем по очкам
-        const leaderboardData = Object.values(userStats)
-            .sort((a, b) => b.points - a.points)
-            .slice(0, 10); // Топ-10 участников
-        
+    // Загрузка рейтинга
+    async loadLeaderboard() {
+        try {
+            const leaderboard = await firestoreService.getLeaderboard(10);
+            this.renderLeaderboard(leaderboard);
+        } catch (error) {
+            console.error('Ошибка загрузки рейтинга:', error);
+            this.renderLeaderboard([]);
+        }
+    }
+
+    // Рендеринг таблицы рейтинга
+    renderLeaderboard(leaderboard) {
         const tbody = document.getElementById('leaderboard-body');
         
-        if (leaderboardData.length === 0) {
+        if (!tbody) return;
+        
+        if (leaderboard.length === 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="6" style="text-align: center; padding: 40px;">
@@ -448,16 +511,38 @@ class CrowdsourcingApp {
             return;
         }
         
-        tbody.innerHTML = leaderboardData.map((user, index) => `
+        tbody.innerHTML = leaderboard.map((user, index) => `
             <tr>
                 <td>${index + 1}</td>
                 <td>${user.name}</td>
                 <td>${user.class || '-'}</td>
-                <td>${user.ideas}</td>
-                <td>${user.votes}</td>
-                <td>${user.points}</td>
+                <td>${user.ideasCount}</td>
+                <td>${user.totalVotes}</td>
+                <td>${user.score}</td>
             </tr>
         `).join('');
+    }
+
+    // Настройка темы
+    setupTheme() {
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-theme');
+            document.getElementById('theme-toggle').innerHTML = '<i class="fas fa-sun"></i>';
+        }
+        
+        // Обработчик переключения темы
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            document.body.classList.toggle('dark-theme');
+            
+            const icon = document.querySelector('#theme-toggle i');
+            if (document.body.classList.contains('dark-theme')) {
+                icon.className = 'fas fa-sun';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                icon.className = 'fas fa-moon';
+                localStorage.setItem('theme', 'light');
+            }
+        });
     }
 
     // Настройка счетчиков символов
@@ -467,13 +552,123 @@ class CrowdsourcingApp {
         const titleChars = document.getElementById('title-chars');
         const descChars = document.getElementById('desc-chars');
         
-        titleInput.addEventListener('input', () => {
-            titleChars.textContent = titleInput.value.length;
+        if (titleInput && titleChars) {
+            titleInput.addEventListener('input', () => {
+                titleChars.textContent = titleInput.value.length;
+            });
+        }
+        
+        if (descInput && descChars) {
+            descInput.addEventListener('input', () => {
+                descChars.textContent = descInput.value.length;
+            });
+        }
+    }
+
+    // Настройка обработчиков событий
+    setupEventListeners() {
+        // Фильтрация идей
+        document.querySelectorAll('.filter-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                // Убираем активный класс у всех кнопок
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                // Добавляем активный класс текущей кнопке
+                button.classList.add('active');
+                
+                // Устанавливаем текущий фильтр
+                this.currentFilter = button.dataset.filter;
+                
+                // Обновляем подписку на реальное время
+                this.setupRealtimeUpdates();
+            });
         });
         
-        descInput.addEventListener('input', () => {
-            descChars.textContent = descInput.value.length;
-        });
+        // Отправка формы
+        const submitButton = document.getElementById('submit-idea');
+        if (submitButton) {
+            submitButton.addEventListener('click', () => {
+                this.submitIdea();
+            });
+        }
+        
+        // Отправка формы по нажатию Enter
+        const titleInput = document.getElementById('idea-title');
+        if (titleInput) {
+            titleInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.submitIdea();
+                }
+            });
+        }
+        
+        // Закрытие модального окна
+        const modalClose = document.querySelector('.modal-close');
+        if (modalClose) {
+            modalClose.addEventListener('click', () => {
+                document.getElementById('idea-modal').classList.remove('active');
+            });
+        }
+    }
+
+    // Обработка отправки формы
+    async submitIdea() {
+        const title = document.getElementById('idea-title')?.value.trim() || '';
+        const description = document.getElementById('idea-description')?.value.trim() || '';
+        const category = document.getElementById('idea-category')?.value || 'other';
+        const author = document.getElementById('idea-author')?.value.trim() || '';
+        const userClass = document.getElementById('idea-class')?.value.trim() || '';
+        
+        const ideaData = {
+            title,
+            description,
+            category,
+            author,
+            class: userClass
+        };
+        
+        try {
+            // Показываем индикатор загрузки
+            const submitButton = document.getElementById('submit-idea');
+            const originalText = submitButton.innerHTML;
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Отправка...';
+            
+            await this.addNewIdea(ideaData);
+            
+            // Восстанавливаем кнопку
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalText;
+            
+        } catch (error) {
+            // Восстанавливаем кнопку при ошибке
+            const submitButton = document.getElementById('submit-idea');
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<i class="fas fa-paper-plane"></i> Отправить идею';
+            }
+        }
+    }
+
+    // Очистка формы
+    clearForm() {
+        const titleInput = document.getElementById('idea-title');
+        const descInput = document.getElementById('idea-description');
+        const authorInput = document.getElementById('idea-author');
+        const classInput = document.getElementById('idea-class');
+        const categorySelect = document.getElementById('idea-category');
+        const titleChars = document.getElementById('title-chars');
+        const descChars = document.getElementById('desc-chars');
+        
+        if (titleInput) titleInput.value = '';
+        if (descInput) descInput.value = '';
+        if (authorInput) authorInput.value = '';
+        if (classInput) classInput.value = '';
+        if (categorySelect) categorySelect.selectedIndex = 0;
+        if (titleChars) titleChars.textContent = '0';
+        if (descChars) descChars.textContent = '0';
     }
 
     // Показать уведомление
@@ -482,7 +677,9 @@ class CrowdsourcingApp {
         const notificationText = document.getElementById('notification-text');
         const icon = notification.querySelector('i');
         
-        // Устанавливаем текст и иконку в зависимости от типа
+        if (!notification || !notificationText) return;
+        
+        // Устанавливаем текст и иконку
         notificationText.textContent = message;
         
         if (type === 'success') {
@@ -501,112 +698,12 @@ class CrowdsourcingApp {
             notification.classList.remove('active');
         }, 3000);
     }
-
-    // Настройка обработчиков событий
-    setupEventListeners() {
-        // Переключение темы
-        document.getElementById('theme-toggle').addEventListener('click', () => {
-            document.body.classList.toggle('dark-theme');
-            
-            const icon = document.querySelector('#theme-toggle i');
-            if (document.body.classList.contains('dark-theme')) {
-                icon.className = 'fas fa-sun';
-                localStorage.setItem('theme', 'dark');
-            } else {
-                icon.className = 'fas fa-moon';
-                localStorage.setItem('theme', 'light');
-            }
-        });
-        
-        // Фильтрация идей
-        document.querySelectorAll('.filter-btn').forEach(button => {
-            button.addEventListener('click', () => {
-                // Убираем активный класс у всех кнопок
-                document.querySelectorAll('.filter-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                
-                // Добавляем активный класс текущей кнопке
-                button.classList.add('active');
-                
-                // Устанавливаем текущий фильтр
-                this.currentFilter = button.dataset.filter;
-                
-                // Рендерим идеи с учетом фильтра
-                this.renderIdeas();
-            });
-        });
-        
-        // Отправка формы
-        document.getElementById('submit-idea').addEventListener('click', () => {
-            this.submitIdea();
-        });
-        
-        // Закрытие модального окна
-        document.querySelector('.modal-close').addEventListener('click', () => {
-            document.getElementById('idea-modal').classList.remove('active');
-        });
-        
-        // Отправка формы по нажатию Enter
-        document.getElementById('idea-title').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.submitIdea();
-            }
-        });
-    }
-
-    // Обработка отправки формы
-    submitIdea() {
-        const title = document.getElementById('idea-title').value.trim();
-        const description = document.getElementById('idea-description').value.trim();
-        const category = document.getElementById('idea-category').value;
-        const author = document.getElementById('idea-author').value.trim();
-        const userClass = document.getElementById('idea-class').value.trim();
-        
-        // Валидация
-        if (!title) {
-            this.showNotification('Введите название идеи!', 'warning');
-            document.getElementById('idea-title').focus();
-            return;
-        }
-        
-        if (title.length < 5) {
-            this.showNotification('Название идеи должно содержать минимум 5 символов!', 'warning');
-            document.getElementById('idea-title').focus();
-            return;
-        }
-        
-        if (!description) {
-            this.showNotification('Введите описание идеи!', 'warning');
-            document.getElementById('idea-description').focus();
-            return;
-        }
-        
-        if (description.length < 20) {
-            this.showNotification('Описание идеи должно содержать минимум 20 символов!', 'warning');
-            document.getElementById('idea-description').focus();
-            return;
-        }
-        
-        // Создаем объект с данными идеи
-        const ideaData = {
-            title,
-            description,
-            category,
-            author: author || null,
-            class: userClass || null,
-            votes: 0
-        };
-        
-        // Добавляем новую идею
-        this.addNewIdea(ideaData);
-        
-        // Прокручиваем к секции с идеями
-        document.getElementById('ideas').scrollIntoView({ behavior: 'smooth' });
-    }
 }
 
 // Инициализация приложения при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
-    window.app = new CrowdsourcingApp();
+    // Ждем загрузки Firebase
+    setTimeout(() => {
+        window.app = new CrowdsourcingApp();
+    }, 100);
 });
